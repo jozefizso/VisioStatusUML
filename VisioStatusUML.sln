@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2026
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VisioStatusUML", "VisioStatusUML\VisioStatusUML.csproj", "{A74D57DC-0398-4584-971F-F6A3171E9C5A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A74D57DC-0398-4584-971F-F6A3171E9C5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A74D57DC-0398-4584-971F-F6A3171E9C5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A74D57DC-0398-4584-971F-F6A3171E9C5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A74D57DC-0398-4584-971F-F6A3171E9C5A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {667BA3C0-4772-4255-A8B0-A03A304DD278}
+	EndGlobalSection
+EndGlobal
