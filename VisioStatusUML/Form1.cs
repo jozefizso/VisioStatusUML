@@ -35,6 +35,91 @@ namespace VisioStatusUML
             GerarArquivo(sinistro);
         }
 
+
+
+        private void DesenharStatus(IVisio.Page page, StatusSinistro sinistro, List<StatusSinistro> listaSinistro, List<IVisio.Shape> listaShape)
+        {
+            //todo: Ajustar metodo de desenho para criar o shape de todos os status relacionados a um item antes de ir para o nivel abaixo. Para evitar erro de reutilização da mesma transação.
+
+
+            if (listaShape != null)
+            {
+                if (listaShape.Any(x => x.Data2 == sinistro.CodigoStatusSeguinte))
+                {
+                    var shape = listaShape.SingleOrDefault(x => x.Data2 == sinistro.CodigoStatusSeguinte);
+
+                    foreach (var s in listaShape.Where(x => x.Data2 == sinistro.CodigoStatusAnterior))
+                    {
+                        s.AutoConnect(shape, IVisio.VisAutoConnectDir.visAutoConnectDirDown);
+                    }
+
+                    listaShape.Add(shape);
+                }
+                else
+                {
+                    var shape = page.DrawRectangle(1, 1, 3, 2);
+                    shape.Text = string.IsNullOrEmpty(sinistro.NomeStatusSeguinte) ? "Não achei" : sinistro.NomeStatusSeguinte;
+                    shape.Data1 = sinistro.CodigoStatusAnterior;
+                    shape.Data2 = sinistro.CodigoStatusSeguinte;
+                    shape.Data3 = sinistro.CodigoTransacao;
+
+                    if (listaShape.Any(x => x.Data2 == sinistro.CodigoStatusAnterior))
+                    {
+                        foreach (var s in listaShape.Where(x => x.Data2 == sinistro.CodigoStatusAnterior))
+                        {
+                            s.AutoConnect(shape, IVisio.VisAutoConnectDir.visAutoConnectDirDown);
+                        }
+                    }
+
+                    listaShape.Add(shape);
+                }
+
+                var novaLista = listaSinistro.Where(x => x.CodigoTransacao != sinistro.CodigoTransacao).ToList();
+
+                if (novaLista.Any(x => x.CodigoStatusAnterior == sinistro.CodigoStatusSeguinte))
+                {
+                    foreach (var item in novaLista.Where(x => x.CodigoStatusAnterior == sinistro.CodigoStatusSeguinte))
+                    {
+                        DesenharStatus(page, item, novaLista, listaShape);
+                    }
+                }
+            }
+        }
+        private void GerarArquivo(List<StatusSinistro> lista)
+        {
+            var visapp = new IVisio.Application();
+            var doc = visapp.Documents.Add("");
+            var page = visapp.ActivePage;
+
+            List<IVisio.Shape> listaShape = new List<IVisio.Shape>();
+
+            DesenharStatus(page, lista.FirstOrDefault(), lista, listaShape);
+        }
+        private List<StatusSinistro> MontarListaDeStatus(List<string[]> lista)
+        {
+            List<StatusSinistro> s = new List<StatusSinistro>();
+
+            lista.ForEach(x => s.Add(new StatusSinistro()
+            {
+                CodigoTransacao = x[0],
+                NomeTransacao = x[1],
+
+                CodigoStatusAnterior = x[2],
+                NomeStatusAnterior = x[3],
+
+                CodigoStatusSeguinte = x[4],
+                NomeStatusSeguinte = x[5]
+            }));
+
+            StatusSinistro primeiroStatus = s.SingleOrDefault(x => x.CodigoTransacao == "A" || x.CodigoTransacao == "00A");
+            List<StatusSinistro> statusPosteriores = s.Where(x => x.CodigoStatusAnterior != null && x.CodigoStatusSeguinte != null).ToList();
+            List<StatusSinistro> outrosStatus = s.Where(x => (x.CodigoStatusAnterior == null || x.CodigoStatusSeguinte == null) && x.CodigoTransacao != "A").ToList();
+
+            List<StatusSinistro> sinistros = new List<StatusSinistro> { primeiroStatus };
+            sinistros.AddRange(statusPosteriores);
+
+            return sinistros;
+        }
         private List<string[]> LerArquivo()
         {
             List<string[]> contents = new List<string[]>();
@@ -74,80 +159,6 @@ namespace VisioStatusUML
             }
 
             return contents;
-        }
-        private List<StatusSinistro> MontarListaDeStatus(List<string[]> lista)
-        {
-            List<StatusSinistro> s = new List<StatusSinistro>();
-
-            lista.ForEach(x => s.Add(new StatusSinistro()
-                {
-                    CodigoTransacao = x[0],
-                    NomeTransacao = x[1],
-
-                    CodigoStatusAnterior = x[2],
-                    NomeStatusAnterior = x[3],
-
-                    CodigoStatusSeguinte = x[4],
-                    NomeStatusSeguinte = x[5]
-                }));
-
-            List<StatusSinistro> statusIniciais = s.Where(x => x.CodigoStatusAnterior == null).ToList();
-            List<StatusSinistro> statusIntermediarios = s.Where(x => x.CodigoStatusAnterior != null && x.CodigoStatusSeguinte != null).ToList();
-            List<StatusSinistro> statusTerminais = s.Where(x => x.CodigoStatusSeguinte == null).ToList();
-
-            List<StatusSinistro> sinistros = new List<StatusSinistro>();
-
-            sinistros.AddRange(statusIniciais);
-
-            foreach(var item in sinistros)
-            {
-                item.ListaStatusSeguintes = new List<StatusSinistro>();
-                item.ListaStatusSeguintes.AddRange(statusIntermediarios.Where(x => x.CodigoStatusAnterior == item.CodigoStatusSeguinte));
-
-                foreach (var item2 in item.ListaStatusSeguintes)
-                {
-                    item2.ListaStatusSeguintes = new List<StatusSinistro>();
-                    item2.ListaStatusSeguintes.AddRange(statusTerminais.Where(x => x.CodigoStatusAnterior == item2.CodigoStatusSeguinte));
-                }
-            }
-
-            //sinistros = statusIniciais.FirstOrDefault();
-            //sinistros.ListaStatusSeguintes = new List<StatusSinistro>();
-            //sinistros.ListaStatusSeguintes.Add(statusIntermediarios.FirstOrDefault());
-            //sinistros.ListaStatusSeguintes.FirstOrDefault().ListaStatusSeguintes = new List<StatusSinistro>();
-            //sinistros.ListaStatusSeguintes.FirstOrDefault().ListaStatusSeguintes.Add(statusTerminais.FirstOrDefault());
-
-
-            return sinistros;
-        }
-        private void GerarArquivo(List<StatusSinistro> listaNivel1)
-        {
-            var visapp = new IVisio.Application();
-            var doc = visapp.Documents.Add("");
-            var page = visapp.ActivePage;
-
-            foreach (var item in listaNivel1)
-            {
-                DesenharStatus(page, item);
-            }
-
-        }
-
-        private void DesenharStatus(IVisio.Page page, StatusSinistro sinistro, IVisio.Shape shapeAnterior = null)
-        {
-            var shape = page.DrawRectangle(1, 1, 3, 2);
-            shape.Text = string.IsNullOrEmpty(sinistro.NomeStatusSeguinte) ? sinistro.NomeStatusAnterior : sinistro.NomeStatusSeguinte;
-
-            if (shapeAnterior != null)
-                shapeAnterior.AutoConnect(shape, IVisio.VisAutoConnectDir.visAutoConnectDirDown);
-
-            if(sinistro.ListaStatusSeguintes != null && sinistro.ListaStatusSeguintes.Count > 0)
-            {
-                foreach(var item in sinistro.ListaStatusSeguintes)
-                {
-                    DesenharStatus(page, item, shape);
-                }
-            }
         }
     }
 }
