@@ -34,55 +34,43 @@ namespace VisioStatusUML
 
             GerarArquivo(sinistro);
         }
-
-
-
-        private void DesenharStatus(IVisio.Page page, StatusSinistro sinistro, List<StatusSinistro> listaSinistro, List<IVisio.Shape> listaShape)
+        private IVisio.Shape DesenharForma(IVisio.Page page, StatusSinistro sinistro)
         {
-            //todo: Ajustar metodo de desenho para criar o shape de todos os status relacionados a um item antes de ir para o nivel abaixo. Para evitar erro de reutilização da mesma transação.
+            var shape = page.DrawRectangle(1, 1, 3, 2);
+            shape.Text = string.IsNullOrEmpty(sinistro.NomeStatusSeguinte) ? "Não achei" : sinistro.NomeStatusSeguinte;
+            shape.Data1 = sinistro.CodigoStatusAtual;
+            shape.Data2 = sinistro.CodigoStatusSeguinte;
+            shape.Data3 = sinistro.CodigoTransacao;
 
+            return shape;
+        }
+        private void ConnectarDesenhos(IVisio.Shape shapeAtual, IVisio.Shape shapeAnterior)
+        {
+            shapeAtual.AutoConnect(shapeAnterior, IVisio.VisAutoConnectDir.visAutoConnectDirUp);
+        }
 
-            if (listaShape != null)
+        private void DesenharPainel(IVisio.Page page, StatusSinistro sinistro, List<StatusSinistro> listaSinistro, List<IVisio.Shape> listaShape)
+        {
+            if (!listaShape.Any(x => x.Data2 == sinistro.CodigoStatusSeguinte))
             {
-                if (listaShape.Any(x => x.Data2 == sinistro.CodigoStatusSeguinte))
+                var novoShape = DesenharForma(page, sinistro);
+                listaShape.Add(novoShape);
+
+                foreach(var s in listaShape.Where(x => x.Data2 == novoShape.Data1))
                 {
-                    var shape = listaShape.SingleOrDefault(x => x.Data2 == sinistro.CodigoStatusSeguinte);
-
-                    foreach (var s in listaShape.Where(x => x.Data2 == sinistro.CodigoStatusAnterior))
-                    {
-                        s.AutoConnect(shape, IVisio.VisAutoConnectDir.visAutoConnectDirDown);
-                    }
-
-                    listaShape.Add(shape);
-                }
-                else
-                {
-                    var shape = page.DrawRectangle(1, 1, 3, 2);
-                    shape.Text = string.IsNullOrEmpty(sinistro.NomeStatusSeguinte) ? "Não achei" : sinistro.NomeStatusSeguinte;
-                    shape.Data1 = sinistro.CodigoStatusAnterior;
-                    shape.Data2 = sinistro.CodigoStatusSeguinte;
-                    shape.Data3 = sinistro.CodigoTransacao;
-
-                    if (listaShape.Any(x => x.Data2 == sinistro.CodigoStatusAnterior))
-                    {
-                        foreach (var s in listaShape.Where(x => x.Data2 == sinistro.CodigoStatusAnterior))
-                        {
-                            s.AutoConnect(shape, IVisio.VisAutoConnectDir.visAutoConnectDirDown);
-                        }
-                    }
-
-                    listaShape.Add(shape);
+                    ConnectarDesenhos(novoShape, s);
                 }
 
-                var novaLista = listaSinistro.Where(x => x.CodigoTransacao != sinistro.CodigoTransacao).ToList();
-
-                if (novaLista.Any(x => x.CodigoStatusAnterior == sinistro.CodigoStatusSeguinte))
+                foreach(var item in listaSinistro.Where(x => !listaShape.Any(y => y.Data3 == x.CodigoTransacao) && x.CodigoStatusAtual == sinistro.CodigoStatusSeguinte))
                 {
-                    foreach (var item in novaLista.Where(x => x.CodigoStatusAnterior == sinistro.CodigoStatusSeguinte))
-                    {
-                        DesenharStatus(page, item, novaLista, listaShape);
-                    }
+                    DesenharPainel(page, item, listaSinistro, listaShape);
                 }
+            }
+            else
+            {
+                var shapeAtual = listaShape.Single(x => x.Data2 == sinistro.CodigoStatusAtual);
+                var shapeSeguinte = listaShape.Single(x => x.Data2 == sinistro.CodigoStatusSeguinte);
+                ConnectarDesenhos(shapeAtual, shapeSeguinte);
             }
         }
         private void GerarArquivo(List<StatusSinistro> lista)
@@ -93,7 +81,7 @@ namespace VisioStatusUML
 
             List<IVisio.Shape> listaShape = new List<IVisio.Shape>();
 
-            DesenharStatus(page, lista.FirstOrDefault(), lista, listaShape);
+            DesenharPainel(page, lista.FirstOrDefault(), lista, listaShape);
         }
         private List<StatusSinistro> MontarListaDeStatus(List<string[]> lista)
         {
@@ -104,16 +92,16 @@ namespace VisioStatusUML
                 CodigoTransacao = x[0],
                 NomeTransacao = x[1],
 
-                CodigoStatusAnterior = x[2],
-                NomeStatusAnterior = x[3],
+                CodigoStatusAtual = x[2],
+                NomeStatusAtual = x[3],
 
                 CodigoStatusSeguinte = x[4],
                 NomeStatusSeguinte = x[5]
             }));
 
             StatusSinistro primeiroStatus = s.SingleOrDefault(x => x.CodigoTransacao == "A" || x.CodigoTransacao == "00A");
-            List<StatusSinistro> statusPosteriores = s.Where(x => x.CodigoStatusAnterior != null && x.CodigoStatusSeguinte != null).ToList();
-            List<StatusSinistro> outrosStatus = s.Where(x => (x.CodigoStatusAnterior == null || x.CodigoStatusSeguinte == null) && x.CodigoTransacao != "A").ToList();
+            List<StatusSinistro> statusPosteriores = s.Where(x => x.CodigoStatusAtual != null && x.CodigoStatusSeguinte != null).ToList();
+            List<StatusSinistro> outrosStatus = s.Where(x => (x.CodigoStatusAtual == null || x.CodigoStatusSeguinte == null) && x.CodigoTransacao != "A").ToList();
 
             List<StatusSinistro> sinistros = new List<StatusSinistro> { primeiroStatus };
             sinistros.AddRange(statusPosteriores);
